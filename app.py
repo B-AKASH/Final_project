@@ -24,16 +24,39 @@ CSV_FILE = os.path.join(BASE_DIR, "data.csv")
 # DATABASE INITIALIZATION
 # =================================================
 def init_db():
+    # Force a totally fresh start to avoid schema conflicts
+    if os.path.exists(DB_NAME):
+        try:
+            os.remove(DB_NAME)
+        except Exception:
+            pass
+    
     conn = sqlite3.connect(DB_NAME)
     cur = conn.cursor()
 
     cur.execute("""
         CREATE TABLE IF NOT EXISTS patients (
             patient_id TEXT PRIMARY KEY,
-            name TEXT,
+            patient_name TEXT,
             age INTEGER,
-            symptoms TEXT,
-            diagnosis TEXT
+            gender TEXT,
+            diagnosis TEXT,
+            visit_date TEXT,
+            medication TEXT,
+            dosage TEXT,
+            insurance_plan TEXT,
+            has_insurance TEXT,
+            risk_level TEXT,
+            care_priority TEXT,
+            blood_pressure TEXT,
+            heart_rate INTEGER,
+            cholesterol INTEGER,
+            diabetes TEXT,
+            asthma TEXT,
+            chronic_kidney_disease TEXT,
+            obesity TEXT,
+            smoking_status TEXT,
+            anemia TEXT
         )
     """)
 
@@ -48,19 +71,41 @@ def load_csv_to_db():
     conn = sqlite3.connect(DB_NAME)
     cur = conn.cursor()
 
+    # Clear table to ensure full reload with new schema
+    cur.execute("DELETE FROM patients")
+
     with open(CSV_FILE, newline="", encoding="utf-8") as file:
         reader = csv.DictReader(file)
         for row in reader:
             cur.execute("""
                 INSERT OR IGNORE INTO patients
-                (patient_id, name, age, symptoms, diagnosis)
-                VALUES (?, ?, ?, ?, ?)
+                (patient_id, patient_name, age, gender, diagnosis, visit_date, medication, dosage, 
+                 insurance_plan, has_insurance, risk_level, care_priority, blood_pressure, 
+                 heart_rate, cholesterol, diabetes, asthma, chronic_kidney_disease, 
+                 obesity, smoking_status, anemia)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 row["patient_id"],
                 row["patient_name"],
                 int(row["age"]),
+                row["gender"],
+                row["diagnosis"],
+                row["visit_date"],
+                row["medication"],
+                row["dosage"],
+                row["insurance_plan"],
+                row["has_insurance"],
                 row["risk_level"],
-                row["diagnosis"]
+                row["care_priority"],
+                row["blood_pressure"],
+                int(row["heart_rate"]) if row["heart_rate"] else None,
+                int(row["cholesterol"]) if row["cholesterol"] else None,
+                row["diabetes"],
+                row["asthma"],
+                row["chronic_kidney_disease"],
+                row["obesity"],
+                row["smoking_status"],
+                row["anemia"]
             ))
 
     conn.commit()
@@ -95,17 +140,6 @@ def get_db_connection():
 def get_patient(patient_id: str):
     conn = get_db_connection()
     cur = conn.cursor()
-
-    # SAFETY NET (prevents reload issues)
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS patients (
-            patient_id TEXT PRIMARY KEY,
-            name TEXT,
-            age INTEGER,
-            symptoms TEXT,
-            diagnosis TEXT
-        )
-    """)
 
     cur.execute(
         "SELECT * FROM patients WHERE patient_id = ?",
@@ -199,13 +233,13 @@ def hospital_inquiry(q: InquiryQuery):
     where_clause = " AND ".join(nlu_data.get("sql_conditions", []))
 
     if nlu_data.get("specific_name"):
-        name_clause = f"name LIKE '%{nlu_data['specific_name']}%'"
+        name_clause = f"patient_name LIKE '%{nlu_data['specific_name']}%'"
         where_clause = f"{where_clause} AND {name_clause}" if where_clause else name_clause
 
     results = search_patients(where_clause)
 
     total_count = len(results)
-    patient_names = [r.get("name") for r in results]
+    patient_names = [r.get("patient_name") for r in results]
 
     context_patient = results[0] if results else {
         "diabetes": "No",
