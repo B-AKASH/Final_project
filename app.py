@@ -9,7 +9,31 @@ from llm import explain_decision, parse_inquiry
 # =================================================
 app = FastAPI(title="Professional Hospital Inquiry System")
 
+import sqlite3
+
 DB_PATH = "a.db"
+
+def init_db():
+    conn = sqlite3.connect(DB_PATH)
+    cur = conn.cursor()
+
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS patients (
+        patient_id INTEGER PRIMARY KEY,
+        patient_name TEXT,
+        age INTEGER,
+        gender TEXT,
+        diagnosis TEXT,
+        risk_level TEXT,
+        care_priority TEXT,
+        blood_pressure TEXT
+    )
+    """)
+
+    conn.commit()
+    conn.close()
+
+
 
 # =================================================
 # REQUEST MODELS
